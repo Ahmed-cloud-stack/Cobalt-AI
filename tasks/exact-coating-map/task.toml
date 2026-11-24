@@ -1,0 +1,23 @@
+schema_version = "1.4"
+artifacts = []
+
+[task]
+name = "cobalt/exact-coating-map"
+version = "1.0.0"
+authors = [{ name = "Cobalt-AI" }]
+
+[metadata]
+difficulty = "hard"
+category = "algorithms"
+tags = ["computational-geometry", "exact-arithmetic", "versioned-state", "python-stdlib"]
+
+[verifier]
+timeout_sec = 900.0
+
+[agent]
+timeout_sec = 5400.0
+
+[environment]
+build_timeout_sec = 900.0
+cpus = 2
+memory_mb = 4096
