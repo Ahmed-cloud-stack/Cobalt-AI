@@ -4,7 +4,7 @@ Repair the deployed `/app/overlay.py` renderer for an offline plotter. It receiv
 
 The deployment accepts a patch of at most **100 changed lines** in `/app/overlay.py`. Count each added or deleted line in a Python `difflib.unified_diff` with zero context, excluding the two file headers. Replacing a line counts as two. Keep the CLI in this file and use no helper files or libraries outside the Python standard library.
 
-After repairing the renderer, use it to generate `/app/output/sample.json` and `/app/output/sample_history.json` from the two JSON files supplied in `/app`.
+After repairing the renderer, use it to generate `/app/output/sample.json` and `/app/output/sample_history.json` from `/app/sample.json` and `/app/sample_history.json`, respectively. For held-out cases, the verifier supplies temporary input and output paths as CLI arguments.
 
 Run it with `python3 -I -S /app/overlay.py INPUT OUTPUT`. Use Python 3.12 and its standard library. The program cannot launch subprocesses, access the network, or write outside OUTPUT. The verifier enforces a 256 MiB address-space limit and a 20-second per-drawing timeout.
 

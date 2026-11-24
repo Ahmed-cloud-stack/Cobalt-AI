@@ -1,5 +1,4 @@
 """Regenerate goldens after checking the reference with independent invariants."""
-import gzip
 import json
 import sys
 from fractions import Fraction as Q
@@ -8,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "solution"))
 from reference import render
+from answer_digest import answer_digest
 from cases import drawing, examples, rect, independent_measurements, layer, stress, tile_paths, histories, history_stress, rail_stress, rail_limits, rail_transform, fan_stress, RAIL_LENGTH, probe_histories, rail_with_probes, dense_edits, dense_markers, dense_tile, DENSE_TILES, narrow_tiles, patch_cases, long_ray_cases, palette_nesting
 
 
@@ -492,7 +492,7 @@ def run():
         for pair in sorted(interfaces, key=lambda p: tuple(x or "" for x in p))
     ]}
     expected["nested-palette"] = result
-    output = Path(__file__).with_name("expected.json.gz")
+    output = Path(__file__).with_name("expected_sha256.json")
     files = output.parents[1] / "environment"
     sample_answers = {name: render(json.loads((files / name).read_text(encoding="utf-8")))
                       for name in ("sample.json", "sample_history.json")}
@@ -502,7 +502,8 @@ def run():
     assert example[1]["queries"] == [{"first": probe, "second": probe, "same_walk": True}]
     output.with_name("samples_expected.json").write_text(json.dumps(sample_answers, indent=2) + "\n",
                                                         encoding="utf-8")
-    output.write_bytes(gzip.compress(json.dumps(expected, separators=(",", ":")).encode(), mtime=0))
+    digests = {name: answer_digest(answer) for name, answer in expected.items()}
+    output.write_text(json.dumps(digests, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

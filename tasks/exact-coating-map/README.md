@@ -1,28 +1,38 @@
 # Repair the exact coating map renderer
 
-This Harbor task exercises exact planar geometry and versioned state. The candidate receives a deployed Python renderer, two public inputs, and a 100-changed-line repair budget. The renderer must recover planar boundaries from overlapping and self-crossing paths, honor paint and winding changes along a branching history, and answer directed probes about individual closed walks.
+## Summary
 
-The Docker environment uses only Python 3.12 and its standard library. Docker Compose disables networking. The verifier runs each drawing in a separate Python process under a 256 MiB address-space cap and a 20-second timeout. It checks both generated sample outputs and enforces the patch budget with a zero-context unified diff.
+Repair a deployed Python renderer that computes visible regions, material interfaces, and boundary walks from overlapping paths and branching paint revisions.
 
-## Run with Harbor
+## What the agent sees
 
-From the checkout root, run these as separate jobs.
+Harbor supplies the task instructions. The Python 3.12 image includes tmux and three files in `/app`: `overlay.py`, `sample.json`, and `sample_history.json`. Harbor sets the task runtime to `no-network`.
+
+## What the agent must get right
+
+Repair `/app/overlay.py` within 100 changed lines and generate `/app/output/sample.json` and `/app/output/sample_history.json`. Preserve the CLI, use exact rational arithmetic, and honor the winding rules, paint precedence, branching history, and directed boundary probes. Each drawing has a 20-second timeout and a 256 MiB address-space cap.
+
+## What makes it hard
+
+Rational intersections, collinear overlaps, holes, and point contacts complicate boundary traversal and canonical ordering. Large workloads reach 16,000 segments, 6,000 revisions, and 24,000 probe pairs. Recomputing every drawing from scratch or scanning every segment for each winding query can exceed the time limit.
+
+## How the answers are produced
+
+The reference renderer splits edges into an exact rational arrangement and indexes winding queries. A depth-first traversal applies and rolls back edits. A segment tree over revision order and rollback union–find recover closed walks for the probes.
+
+The verifier generates held-out inputs locally and compares complete, canonical JSON answers against SHA-256 fingerprints. The generator checks the reference using vertical-band integration, analytical fixtures, and direct traversal of canonical walks on small histories. The two public sample answers are stored separately as JSON.
+
+## Checks run
+
+The suite has 61 held-out drawings, two public output checks, and a patch-budget check. During calibration, Oracle passed 64 of 64 checks and earned reward 1. NOP passed 7 of 64 and earned reward 0. Five blind solvers scored 63, 62, 62, 61, and 62 of 64. A separate reference smoke test verified 6,000 revisions reporting all 136 interface pairs under the memory cap.
+
+## Running it
+
+From the checkout root, run the two controls in a Harbor environment with support for the `no-network` policy.
 
 ```sh
 harbor run -p tasks/exact-coating-map -e docker -a oracle
 harbor run -p tasks/exact-coating-map -e docker -a nop
 ```
 
-The reference solution splits edges into an exact rational arrangement. It indexes winding queries, including summaries for long rays through nested layers. A depth-first traversal applies and rolls back each edit. Along that traversal, the renderer records when each boundary successor link is active. An interval tree and rollback union–find recover closed walks and their probe measurements without retracing every walk for every revision.
-
-## Verifier data
-
-The held-out drawings cover rational crossings, retraced and overlapping edges, coincident anchors, holes, branch rollback, repeated-material layers, and directed probes at high-degree vertices. The largest workloads reach 16,000 input segments, 6,000 revisions, and 24,000 probe pairs. Independent checks use vertical-band integration, analytical nested and translated fixtures, and direct traversal of canonical walks on small histories.
-
-To regenerate the expected outputs with those checks, run `python3 tasks/exact-coating-map/tests/generate.py`.
-
-## Calibration
-
-Harbor Oracle earned reward 1 with 64 of 64 checks and a 100-line patch. Harbor NOP earned reward 0 with 7 of 64 checks. Five blind solvers received separate copies of the public files. Their frozen submissions scored 63, 62, 62, 61, and 62 out of 64 in separate offline containers. The full-suite pass rate was 0 of 5.
-
-An additional reference smoke test verified 6,000 revisions that each report all 136 interface pairs under the 256 MiB limit.
+Run `python3 tasks/exact-coating-map/tests/generate.py` to regenerate the fingerprints and sample answers.

@@ -1,5 +1,4 @@
 """Run the submitted CLI against the same held-out suite for every trial."""
-import gzip
 from difflib import unified_diff
 import json
 import os
@@ -10,6 +9,7 @@ import sys
 import tempfile
 import time
 
+from answer_digest import answer_digest
 from cases import examples, stress, histories, history_stress, rail_with_probes, fan_stress, probe_histories, dense_edits, narrow_tiles, patch_cases, long_ray_cases, palette_nesting
 
 
@@ -63,14 +63,14 @@ def check(program, name, drawing, expected):
             actual = json.loads(output.read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             return f"missing or invalid JSON: {exc}"
-        if not equal_json(actual, expected):
+        if answer_digest(actual) != expected:
             return "incorrect coverage, rings, interfaces, or output structure"
     return None
 
 
 def main():
     program = Path(sys.argv[1] if len(sys.argv) == 2 else "/app/overlay.py").resolve()
-    with gzip.open(HERE / "expected.json.gz", "rt", encoding="utf-8") as handle:
+    with (HERE / "expected_sha256.json").open(encoding="utf-8") as handle:
         golden = json.load(handle)
     cases = list(examples()) + [("sparse-16000", stress())] + list(histories())
     cases.extend([("branching-6000", history_stress()), ("connected-6000", rail_with_probes()),
