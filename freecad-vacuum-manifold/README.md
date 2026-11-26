@@ -1,6 +1,6 @@
 # Vacuum manifold insert
 
-FreeCAD benchmark for routing eighteen vacuum circuits through a three-layer insert and building a solid model from the routing schedule. The brief is in [agent/PROMPT.md](agent/PROMPT.md).
+FreeCAD benchmark for routing twelve vacuum circuits through a three-layer insert and building a solid model from the routing schedule. The brief is in [agent/PROMPT.md](agent/PROMPT.md).
 
 For an agent run, give the solver the brief and mount only `environment/data/task/` at `/app/data/task/`. Use a fresh writable `/app/` for each submission. Keep the reference and verifier outside the solver environment.
 
@@ -27,4 +27,16 @@ The grader writes `reward.json` and `report.json` in the output directory.
 
 ## Difficulty check
 
-At least two of five agents passed the first layout, which had twelve circuits and no bend targets. The layout in this package has eighteen circuits with fixed bend counts and uses 557 of the 564 available stations. In a fresh round, five agents each had six minutes and separate working directories. They received the brief and handout before the oracle was written to disk. None delivered a valid submission. Four agents reported individually valid routes for every circuit, but their routes still shared stations.
+The final layout uses 343 of 351 available stations. V07 also has a fixed bend count.
+
+Five agents received the same brief and handout in separate working directories. None finished both deliverables in five minutes, so every run received the same four-minute continuation. One of the five submissions passed at the cutoff.
+
+| Run | At the cutoff |
+| --- | --- |
+| 1 | Valid routes and FreeCAD solid |
+| 2 | Valid routes; CAD build unfinished |
+| 3 | One shared station in the best candidate |
+| 4 | Valid routes; CAD build unfinished |
+| 5 | Valid routes; FreeCAD file saved after the cutoff |
+
+The pass count measures the complete routing and CAD submission under this time budget. The oracle was held back until the runs ended.

@@ -65,7 +65,7 @@ def check_routes(schedule, spec):
                     raise ValueError(f"{name}: no riser between {previous} and {station}.")
         if vertical_moves != duct["risers"]:
             raise ValueError(f"{name}: expected {duct['risers']} vertical moves, found {vertical_moves}.")
-        if bends != duct["bends"]:
+        if "bends" in duct and bends != duct["bends"]:
             raise ValueError(f"{name}: expected {duct['bends']} bends, found {bends}.")
 
 

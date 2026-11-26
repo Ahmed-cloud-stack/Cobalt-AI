@@ -24,7 +24,7 @@ def build(destination):
         cavity = sweeps[0].multiFuse(sweeps[1:]).removeSplitter()
         cavities.append(cavity)
 
-    blank = Part.makeBox(96, 72, 18)
+    blank = Part.makeBox(72, 60, 18)
     insert = blank.cut(cavities).removeSplitter()
 
     destination.mkdir(parents=True, exist_ok=True)
