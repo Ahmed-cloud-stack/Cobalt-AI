@@ -1,32 +1,32 @@
-# Repair the shutter recorder’s likelihood calculator
+# Extend the shutter recorder’s likelihood calculator
 
 ## Summary
 
-Repair a scientific sensor’s Gaussian likelihood calculator. It predicts point readings and weighted exposure averages from a continuous-time signal model with a shared calibration bias.
+Add retrospective audits to a Gaussian likelihood calculator. An audit predicts an observed sensor reading from all the other observations, including later ones, and reports how the result changes with the model parameters. Measured shutter profiles can change slope inside an exposure. Curved profiles use a separate quadratic weight on each segment.
 
 ## What the agent sees
 
-Harbor supplies the instructions. The Python 3.12 Bookworm image contains NumPy 2.3.5, tmux 3.3a, the deployed `/app/shutter.py`, and `/app/sample.json`. Dependency installation happens during the image build.
+Harbor supplies the instructions. The image contains Python 3.12, NumPy 2.3.5, tmux 3.3a, a working forward calculator at `/app/shutter.py`, and a small input at `/app/sample.json`. The starter returns an empty audit list.
 
 ## What the agent must get right
 
-Within the 145-line repair budget, preserve the CLI and generate `/app/output/sample.json`. Forecast every reading conditional on the observed prefix, process tied end ticks in input order, and return the likelihood and log-parameter derivatives. Requested forecast derivatives include both the mean and the log variance. Inputs can contain 16,000 rows and must finish within 20 seconds and 256 MiB.
+Extend the calculator within 282 changed lines, support linear and quadratic shutter profiles, and generate `/app/output/sample.json`. Individual audits exclude their own observation. Panel audits exclude all the panel’s observations, even when the members end at different ticks. Each predicted variance includes measurement noise. Return each audited row’s conditional mean, variance, and log-parameter derivatives. Preserve the forward outputs. A 16,000-row input can audit every observed row and must finish within 20 seconds and 256 MiB.
 
 ## What makes it hard
 
-The signal is partially observed through up to six simultaneous exposure accumulators. A nonuniform shutter introduces an additional time moment. Small decay arguments cause cancellation in the process covariance, and nearly noiseless readings can make direct covariance downdates lose precision. An indexed event sweep keeps the cost bounded on long inputs. Integer tick differences preserve timing near the ends of the clock range.
+Leaving out every reading separately repeats the work of integrating overlapping exposures. The event sweep must also integrate linear and quadratic weight changes at internal knots without losing accuracy over the supported range of event gaps. Retrospective information crosses changes in the state dimension whenever exposures open or close. In nearly noiseless cases, directly propagating an information matrix can lose precision when projecting onto a nearly unidentified direction. Panel audits also need the off-diagonal precision between panel members. Gradients pass through the retrospective calculation and each small panel solve.
 
 ## How the answers are produced
 
-The reference transports a square-root covariance through the exposure and conditioning steps. It propagates each log-parameter perturbation through the same algebra. The test oracle constructs a joint Gaussian directly. It integrates the covariance kernel using high-precision antiderivatives and differentiates with high-precision central differences. For long cases, isolated exposure blocks or a scalar bias posterior provide independent expected forecasts, likelihoods, and derivatives.
+The reference computes conditional means and a process-noise factor for the endpoint and the first three exposure moments. It records the linear parts of the forward updates and transports a factor of the future information backward through those updates. It evaluates each audited reading’s marginal score and precision while passing its four parameter perturbations through the same operations.
+
+The independent oracle constructs a joint Gaussian by integrating the covariance kernel at high precision. It delays the readings under audit until all retained readings are conditioned on and reads off their conditional marginals. The large cases use repeated exposure blocks and scalar calibration-bias calculations. A separate block oracle integrates out a common bias across 1,000 groups. Inputs and expected answers are generated inside the verifier.
 
 ## Checks run
 
-The verifier checks the line budget and public output, then evaluates small and large inputs numerically. The cases cover endpoint ties, null readings, short exposures, extended tick ranges, and overlapping ramps with nearly noiseless observations.
+The verifier checks the patch budget and sample, then compares numerical results for 88 held-out inputs. It exercises all-audited streams, overlapping curved exposures, tied observations, nearly noiseless readings, overlapping panels, and a common bias that persists across exposure groups.
 
-Oracle passed all 48 checks and earned reward 1. NOP passed 2 of 48 and earned reward 0. The five blind submissions scored 46, 43, 40, 42, and 45 out of 48. All five produced non-finite outputs on at least one valid input. Independent preflight checks confirmed that the held-out inputs meet the documented bounds.
-
-The local image build used a temporary trusted CA mount, and the local Harbor controls used an external offline Docker override. The package records its runtime network policy in `task.toml`.
+The local Oracle run passed all 90 checks on rerun. NOP passed 47 and earned zero. Five blind repairs were graded on the same fixtures and limits. Each had at least one numerical failure and earned zero. These are local results.
 
 ## Running it
 

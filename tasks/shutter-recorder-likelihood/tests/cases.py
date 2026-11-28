@@ -227,3 +227,236 @@ def scaled_batches():
             base = -10**18 + (group + 1) * 100_000_000
             rows.append(dict(source, start=base + source["start"], end=base + source["end"]))
     return tape(settings, rows), templates, groups
+
+
+def audit_cases():
+    cases = dict(small_cases())
+    cases.update(ramps())
+    for name in ("simultaneous-order", "epoch-translation", "duplicate-exposures", "clock-span",
+                 "overlap-00", "overlap-05", "overlap-11", "ramped-segments-0.49999999",
+                 "ramped-segments-1e-18", "profiled-clock-span", "weighted-low-noise-design"):
+        document = cases[name]
+        for i, entry in enumerate(document["rows"]):
+            entry["audit"] = entry["value"] is not None and i % 5 != 2
+        yield "audit-" + name, document
+
+    forecasts_only = [row(1, 4, 1, -1, 2, 0.25, None),
+                      row(3, 3, 1, 2.35, 0, 0.25, None)]
+    for number in (0.0, 3.0):
+        audited = dict(row(2, 9, -1, 2, 0.3, 0.4, number), audit=True, ramp=1)
+        yield f"sole-reading-{number}", tape(params(), [*forecasts_only, audited])
+
+
+def audit_batches():
+    document, templates, groups = profiled_batches()
+    for rows in [document["rows"], *(t["rows"] for t in templates)]:
+        for row in rows:
+            row["audit"] = row["value"] is not None
+    return document, templates, groups
+
+
+def audit_bias_answers(document):
+    base = bias_answers(document)
+    bias = document["parameters"]["bias_variance"]
+    scale = document["parameters"]["noise_scale"]
+    rows = document["rows"]
+
+    weighted = [(r["bias_loading"]/r["sd"])**2 if r["value"] is not None else 0
+                for r in rows]
+    moment = [r["bias_loading"]*(r["value"]-r["offset"])/r["sd"]**2
+              if r["value"] is not None else 0 for r in rows]
+    information, linear = math.fsum(weighted), math.fsum(moment)
+    audited = []
+    for i, r in enumerate(rows):
+        if not r.get("audit"):
+            continue
+        l, sd = r["bias_loading"], r["sd"]
+        other, total = information-weighted[i], linear-moment[i]
+        var = 1/(1/bias + other/scale)
+        m = var * total / scale
+        y = r["offset"] + l*m
+        err = l*l*var + scale*sd**2
+        db, dn = var**2/bias, var**2*other/scale
+        dm = l*db*total/scale
+        en = l*l*dn + scale*sd**2
+        audited.append({"row": i, "mean": y, "variance": err,
+                        "mean_gradient": {"log_rate": 0, "log_signal_variance": 0,
+                                          "log_bias_variance": dm,
+                                          "log_noise_scale": l*(dn*total/scale-m)},
+                        "log_variance_gradient": {"log_rate": 0, "log_signal_variance": 0,
+                                                  "log_bias_variance": l*l*db/err,
+                                                  "log_noise_scale": en/err}})
+    return dict(base, audits=audited)
+
+
+def mixed_audit_batches():
+    document, templates, groups = audit_batches()
+    for j, source in enumerate(templates):
+        for i, row in enumerate(source["rows"]):
+            row["bias_loading"] = (i % 9 - 4) * (0.2 + j/20)
+    for j, row in enumerate(document["rows"]):
+        local, slot = divmod(j, groups)
+        group = groups-slot-1
+        row["bias_loading"] = templates[group % len(templates)]["rows"][local]["bias_loading"]
+    return document, templates, groups
+
+
+def use_profile(row, variant):
+    a, b = row["start"], row["end"]
+    if b - a < 2:
+        return
+    ticks = sorted({a, a+(b-a)//4, a+(b-a)//2, a+3*(b-a)//4, b})
+    weight = ((0, 0, 1.125, 4, 0), (3, 0.063, 0, 0, 2.4), (0.3, 2, 1e-5, 1, 0))
+    row.pop("ramp", None)
+    row["profile"] = [[t, weight[variant % 3][i]] for i, t in enumerate(ticks)]
+
+
+def measured_profiles():
+    templates = dict(audit_cases())
+    for name in ("ramped-segments-1e-18", "ramped-segments-0.49999999",
+                 "ramped-segments-4e-05", "profiled-clock-span", "weighted-low-noise-design",
+                 "duplicate-exposures", "epoch-translation", "overlap-05",
+                 "profiled-rate-1e-18", "profiled-all-forecast"):
+        full = "audit-" + name
+        document = templates.get(full)
+        if document is None:
+            options = dict(ramps())
+            document = options[name]
+            for entry in document["rows"]:
+                entry["audit"] = entry["value"] is not None
+        for j, entry in enumerate(document["rows"]):
+            use_profile(entry, j)
+            entry["sensitivity"] = True
+        yield "profile-" + name, document
+
+    rows = [
+        dict(row(-10**18, -10**18+5, 1.2, 1.1, 0, .1, .2),
+             profile=[[-10**18,0],[-10**18+1,0],[-10**18+3,0],[-10**18+4,3],[-10**18+5,0]],
+             sensitivity=True, audit=True),
+        dict(row(-10**18+1, -10**18+3, 1, -2, 0, .12, None),
+             profile=[[-10**18+1,4],[-10**18+2,0],[-10**18+3,1]], sensitivity=True),
+        dict(row(-10**18+3, -10**18+3, 1, 1, 0, .15, .6), audit=True),
+        dict(row(-10**18+3, -10**18+6, 1.9, -1.1, .03, .4, 0),
+             profile=[[-10**18+3,0],[-10**18+4,0],[-10**18+5,0],[-10**18+6,4]], audit=True),
+        dict(row(-10**18+5,-10**18+5, 1, 0, 0, .25, .15), audit=True)
+    ]
+    yield "knot-at-other-reading", tape(params(.03999999995, 2.6, 1.8, .66), rows)
+
+
+def measured_batches():
+    document, templates, groups = mixed_audit_batches()
+    for template in templates:
+        for index in (0, 1, 3):
+            use_profile(template["rows"][index], index)
+    for i, row in enumerate(document["rows"]):
+        local, slot = divmod(i, groups)
+        if local not in (0, 1, 3):
+            continue
+        group = groups - slot - 1
+        source = templates[group % len(templates)]["rows"][local]
+        shift = row["start"] - source["start"]
+        row.pop("ramp", None)
+        row["profile"] = [[tick + shift, weight] for tick, weight in source["profile"]]
+    return document, templates, groups
+
+
+def panel_cases():
+    rows = [
+        dict(row(-2, 3, 1.4, -1.1, .02, 1.2, .14), panel="D", audit=True),
+        dict(row(1, 6, -.8, .7, .01, 1.1, -.09), panel="C", audit=True),
+        dict(row(-1, 1, .9, 1.3, -.03, 1.0, .08), panel="A", audit=True),
+        dict(row(10, 10, .6, -.7, .09, 1.0, -.22), panel="D", audit=True),
+        dict(row(2, 3, .3, .9, 0, .5, None), sensitivity=True),
+        dict(row(0, 4, 1.7, -.2, .04, 1.6, .32), panel="A", audit=True, sensitivity=True),
+        dict(row(6, 8, -.5, 1.4, 0, 1.3, .03), panel="A", audit=True),
+        dict(row(4, 4, 1.2, 1.1, 0, 1.0, .07), panel="C", audit=True),
+        dict(row(5, 11, 2.0, -.8, -.03, 1.0, -.12), panel="C", audit=True),
+        dict(row(-2, 2, .5, -.4, 0, 1.4, .01), panel="B", audit=True),
+        dict(row(3, 3, 1.2, -.9, .02, .4, .12), audit=True),
+        dict(row(7, 7, .85, .9, 0, 1.0, .27), panel="B", audit=True),
+        dict(row(8, 10, -1.3, .3, 0, 1.0, -.32), panel="C", audit=True),
+        dict(row(3, 5, 1.2, 1.2, .07, .2, .08), audit=True, sensitivity=True),
+    ]
+    for i in (0, 1, 5, 8):
+        use_profile(rows[i], i)
+    for rate, name in ((.039, "interleaved"), (1e-18, "persistent"), (200, "decorrelated")):
+        yield f"panels-{name}", tape(params(rate, 2.6, .9, .73), rows)
+    rows = [dict(row(0, 0, 4, 4, 0.07, 1, .04 + i*.003), panel="same-tick", audit=True)
+            for i in range(4)]
+    rows.insert(1, dict(row(0, 0, 2, -3, 0, .001, None), sensitivity=True))
+    yield "panel-high-dynamic-range", tape(params(.7, 10000, 10000, .01), rows)
+    shifted = [dict(item, value=item["value"] + 90) if item["value"] is not None else item for item in rows]
+    yield "panel-high-dynamic-range-offset", tape(params(.7, 10000, 10000, .01), shifted)
+
+
+def panel_batches():
+    templates = []
+    groups = 4000
+    for variant in range(3):
+        rows = [dict(row(0, 3, 1.4, 0, .1, 1, .07), audit=True, panel="s"),
+                dict(row(1, 4, -1.0, 0, -.04, 1.2, .24), audit=True, panel="s"),
+                dict(row(2, 2, .7, 0, 0, .4, .06), audit=True, sensitivity=True),
+                dict(row(4, 6, .2, 0, .03, 1.0, -.03), audit=True, panel="s")]
+        rows[0]["profile"] = [[0, .2], [1 + variant % 2, 1.0 + variant], [3, .3]]
+        templates.append(tape(params(.36, 1.7, .4, .73), rows))
+
+    rows = []
+    for slot in range(4):
+        for group in range(groups - 1, -1, -1):
+            item = templates[group % len(templates)]["rows"][slot].copy()
+            shift = group * 8192
+            item.update(start=item["start"] + shift, end=item["end"] + shift)
+            if "profile" in item:
+                item["profile"] = [[t + shift, w] for t, w in item["profile"]]
+            if "panel" in item:
+                item["panel"] = str(group)
+            rows.append(item)
+    return tape(templates[0]["parameters"], rows), templates, groups
+
+
+def curve_from_profile(profile, variant):
+    controls = (0, .015, 2.5, 1.0, 4.0)
+    return [[tick, weight, controls[(i + variant) % len(controls)]]
+            for i, (tick, weight) in enumerate(profile[:-1])] + [profile[-1]]
+
+
+def curved_weights():
+    start = -10**18
+    for rate in (1e-18, 3.999999999, 4, 4.000000001, 1000):
+        rows = [
+            dict(row(start, start+5, 1.3, -.4, .04, 1, .11),
+                 curve=[[start,0,3],[start+1,0,0],[start+3,0,1],[start+5,0]],
+                 audit=True, panel="curved"),
+            dict(row(start+1,start+5, -.55,1.1,.02,.7,None),
+                 curve=[[start+1,4,0],[start+2,0,3],[start+5,0]], sensitivity=True),
+            dict(row(start+3,start+3,1.6,-.2,.1,.4,.13), audit=True, sensitivity=True),
+            dict(row(start+3,start+9, .9,.2,-.05,1.2,.07),
+                 curve=[[start+3,0,4],[start+4,0,0],[start+7,0,0],[start+9,1e-5]],
+                 audit=True, panel="curved"),
+            dict(row(start+5,start+10, .7,-.8,0,.7,-.09), ramp=-.9, audit=True),
+        ]
+        yield f"curved-rate-{rate}", tape(params(rate, 1.8, .45, .8), rows)
+    rows = [
+        dict(row(-10**18,10**18,1,1,.02,1,.01), audit=True, panel="cross",
+             curve=[[-10**18,0,0],[-10**18+1,0,1],[0,0,0],[10**18,1]]),
+        dict(row(-10**18,10**18, -1, .5,-.03,.4,None), sensitivity=True,
+             curve=[[-10**18,4,0],[-1,0,0],[0,0,1],[10**18,0]]),
+        dict(row(-1,0,.2,1,.03,1,-.02), audit=True, panel="cross", curve=[[-1,0,4],[0,0]]),
+        dict(row(0,0,1,-1,.03,.25,.1), sensitivity=True, audit=True),
+    ]
+    for rate in (1e-18, 1000):
+        yield f"curved-full-clock-{rate}", tape(params(rate, 3.2, 1.5,.5), rows)
+
+
+def curved_batches():
+    document, templates, groups = measured_batches()
+    for i, template in enumerate(templates):
+        for slot in (0, 1, 3):
+            item = template["rows"][slot]
+            item["curve"] = curve_from_profile(item.pop("profile"), i + slot)
+    for i, item in enumerate(document["rows"]):
+        if "profile" in item:
+            slot, pos = divmod(i, groups)
+            group = groups - pos - 1
+            item["curve"] = curve_from_profile(item.pop("profile"), group % len(templates) + slot)
+    return document, templates, groups

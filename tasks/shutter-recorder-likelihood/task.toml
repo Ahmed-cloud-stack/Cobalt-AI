@@ -3,7 +3,7 @@ artifacts = []
 
 [task]
 name = "cobalt/shutter-recorder-likelihood"
-version = "1.0.2"
+version = "1.0.6"
 authors = [{ name = "Cobalt-AI" }]
 
 [metadata]
