@@ -1,0 +1,9 @@
+# Paste into the new creator workspace
+
+Create one original, difficult Harbor task in **[DOMAIN]** for **[REPO AND TARGET BRANCH]**. Read PLAYBOOK.md and the example packages for the layout and quality bar. Use the examples to learn the format only. Choose a different problem, model or workflow, with a real deliverable and a verifiable contract. Use data and assets I have authorized.
+
+Write the public instruction, starter environment, executable reference, independent verifier and seven-section README. Make the reference and expected answers independently checkable. Include a public sample, typical regressions, edge cases and stress at the documented limits. Describe every required path, output field, tolerance and resource cap in the public instructions. Ship a root-level ZIP no larger than 2.5 MB. Pin and verify tmux in the Dockerfile. Set network policy in task.toml; leave Harbor’s egress sidecar and Compose networking alone.
+
+Freeze a candidate, run Oracle and NOP, then run five fresh blind attempts with the blind-solver prompt. Give each solver only the instruction and starter environment, with no inherited private context and no access to the reference, verifier, other attempts or earlier solutions. Grade each sealed submission against the same frozen verifier. Require Oracle reward 1, NOP reward 0 and at most one full pass across the five blind submissions. Diagnose infrastructure failures and rerun timeout-only results on a quiet runner. If two or more solve it, improve the actual problem and repeat with fresh blind attempts. Keep failed versions out of the release branch.
+
+After the local gate passes, verify and archive the exact upload tree. Commit and push only to the authorized repository and branch, verify the remote SHA, then provide the commit and ZIP links. Report the local scores and the portal status separately. Preserve reproducibility and flag failures or decisions that affect release.

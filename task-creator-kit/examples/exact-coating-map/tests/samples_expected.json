@@ -1,0 +1,139 @@
+{
+  "sample.json": {
+    "materials": {
+      "ink": {
+        "area": "2",
+        "centroid": [
+          "1",
+          "1/2"
+        ],
+        "rings": [
+          [
+            [
+              "0",
+              "0"
+            ],
+            [
+              "2",
+              "0"
+            ],
+            [
+              "2",
+              "1"
+            ],
+            [
+              "0",
+              "1"
+            ]
+          ]
+        ]
+      }
+    },
+    "interfaces": [
+      {
+        "pair": [
+          null,
+          "ink"
+        ],
+        "length": "6"
+      }
+    ]
+  },
+  "sample_history.json": {
+    "materials": {
+      "ink": {
+        "area": "2",
+        "centroid": [
+          "1",
+          "1/2"
+        ],
+        "rings": [
+          [
+            [
+              "0",
+              "0"
+            ],
+            [
+              "2",
+              "0"
+            ],
+            [
+              "2",
+              "1"
+            ],
+            [
+              "0",
+              "1"
+            ]
+          ]
+        ]
+      }
+    },
+    "interfaces": [
+      {
+        "pair": [
+          null,
+          "ink"
+        ],
+        "length": "6"
+      }
+    ],
+    "revisions": [
+      {
+        "materials": {},
+        "interfaces": [],
+        "queries": [
+          {
+            "first": null,
+            "second": null,
+            "same_walk": false
+          }
+        ]
+      },
+      {
+        "materials": {
+          "ink": {
+            "area": "2",
+            "centroid": [
+              "1",
+              "1/2"
+            ],
+            "ring_count": 1
+          }
+        },
+        "interfaces": [
+          {
+            "pair": [
+              null,
+              "ink"
+            ],
+            "length": "6"
+          }
+        ],
+        "queries": [
+          {
+            "first": {
+              "material": "ink",
+              "signed_area": "2",
+              "length": "6",
+              "anchor": [
+                "0",
+                "0"
+              ]
+            },
+            "second": {
+              "material": "ink",
+              "signed_area": "2",
+              "length": "6",
+              "anchor": [
+                "0",
+                "0"
+              ]
+            },
+            "same_walk": true
+          }
+        ]
+      }
+    ]
+  }
+}

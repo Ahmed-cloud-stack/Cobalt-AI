@@ -1,0 +1,1 @@
+{"layers":[{"material":"ink","rule":"nonzero","paths":[[[0,0],[2,0],[2,1],[0,1]],[[0,0],[2,0],[2,1],[0,1]]]}],"probes":[{"point":["0","1/2"],"heading":[0,-1]},{"point":["1","0"],"heading":[1,0]}],"revisions":[{"parent":0,"layer":0,"paint":"ink","rule":"evenodd","queries":[[0,1]]},{"parent":1,"layer":0,"paint":"ink","rule":"nonzero","queries":[[0,1]]}]}

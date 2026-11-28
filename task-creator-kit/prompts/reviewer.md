@@ -1,0 +1,3 @@
+# Independent reviewer prompt
+
+Review the frozen task as an evaluator. Confirm the instruction fully specifies the deliverables and supported inputs. For each hidden case, identify the corresponding public requirement. Verify the reference and the expected answer generator are independent and check the resource limits under representative load. Compare Oracle, NOP and the five sealed submissions on identical fixtures. Classify failures as numerical, functional, resource, ambiguous instruction or infrastructure. Reproduce timeout-only outcomes in isolation and require a valid binary reward for each trial. Report exact scores, concrete discrepancies, and whether the local release gate passed. Keep results private until trials are sealed.
